@@ -23,7 +23,8 @@ from xiangqi import engine as XE  # noqa: E402
 from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_DIM,
                     C_FAINT, C_ACCENT, C_ACCENT2, C_DANGER, C_OK, C_GOLD,
                     rgba, mk_button, ToolButton, card, stat_row, vscroll,
-                    BaseStore, GameWindow, flash_status, WorkerKeeper)  # noqa: E402
+                    BaseStore, GameWindow, flash_status, WorkerKeeper,
+                    remove_save, output_dir)  # noqa: E402
 from shared.lan_dialog import ask_lan  # noqa: E402
 
 LEVELS = [("easy", "简单"), ("normal", "普通"), ("hard", "困难")]
@@ -94,16 +95,21 @@ class BoardView(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
         ox, oy, cell = self._geom()
-        p.fillRect(self.rect(), QColor(C_BG))
+        # 暖色棋盘：保留深色应用背景，但让象棋区域更像一张精致的漆木棋盘。
+        p.fillRect(self.rect(), QColor("#0d1016"))
 
         bw, bh = cell * 8, cell * 9
-        p.setBrush(QBrush(QColor("#141a24")))
-        p.setPen(QPen(QColor(C_LINE2), 1.6))
+        board_grad = QRadialGradient(QPointF(ox + bw * .38, oy + bh * .25), max(bw, bh) * .9)
+        board_grad.setColorAt(0.0, QColor("#3a2a27"))
+        board_grad.setColorAt(0.7, QColor("#241d20"))
+        board_grad.setColorAt(1.0, QColor("#151820"))
+        p.setBrush(QBrush(board_grad))
+        p.setPen(QPen(QColor("#6b5047"), 1.6))
         p.drawRoundedRect(QRectF(ox - 11, oy - 11, bw + 22, bh + 22), 12, 12)
 
-        ink = QColor("#8ea3bd")
+        ink = QColor("#c29a78")
         thin = QPen(ink, 1.1)
-        thick = QPen(QColor("#aabfd8"), 1.8)
+        thick = QPen(QColor("#e0b78d"), 1.8)
 
         # 横线
         p.setPen(thin)
@@ -145,7 +151,7 @@ class BoardView(QWidget):
         f.setPointSizeF(max(9.0, cell * 0.34))
         f.setBold(True)
         p.setFont(f)
-        p.setPen(QColor(rgba(C_ACCENT2, 0.55)))
+        p.setPen(QColor(rgba("#f08c6c", 0.78)))
         ry = oy + 4.5 * cell
         p.drawText(QRectF(ox + cell * 0.4, ry - cell * 0.5, cell * 3, cell),
                    Qt.AlignCenter, "楚  河")
@@ -879,10 +885,7 @@ if __name__ == "__main__":
     app.setApplicationName("中国象棋")
     app.setStyle("Fusion")
     if "--selftest" in sys.argv:
-        try:
-            os.remove(os.path.join(HERE, "xiangqi_save.json"))
-        except OSError:
-            pass
+        remove_save("xiangqi_save.json")
         w = XiangqiWindow()
         w.resize(1080, 900)
         w.cmb_mode.setCurrentIndex(1)          # 双人模式，避免后台 AI 线程
@@ -897,7 +900,7 @@ if __name__ == "__main__":
         w._refresh(check_pos=w._check_pos())
         for _ in range(10):
             app.processEvents()
-        shot = os.path.join(HERE, "_selftest_xiangqi.png")
+        shot = os.path.join(output_dir(), "_selftest_xiangqi.png")
         w.grab().save(shot)
         print("XIANGQI SELFTEST OK ->", shot, os.path.getsize(shot), "字节")
         w.close()

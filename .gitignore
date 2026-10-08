@@ -1,0 +1,10 @@
+# 运行时产物
+saves/*
+!saves/.gitkeep
+_selftest/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

@@ -26,7 +26,7 @@ from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_D
                     C_FAINT, C_ACCENT, C_ACCENT2, C_DANGER, C_OK, C_GOLD,
                     rgba, mk_button, ToolButton, card, stat_row, vscroll,
                     load_game_json, BaseStore, GameWindow, flash_status, fmt_time,
-                    WorkerKeeper)  # noqa: E402
+                    WorkerKeeper, output_dir, remove_save)  # noqa: E402
 
 ANIM_MS = 120
 
@@ -741,10 +741,7 @@ if __name__ == "__main__":
     app.setApplicationName("数字华容道")
     app.setStyle("Fusion")
     if "--selftest" in sys.argv:
-        try:
-            os.remove(os.path.join(HERE, "number_save.json"))
-        except OSError:
-            pass
+        remove_save("number_save.json")
         w = NumberPuzzleWindow()
         w.resize(1010, 880)
         lv = w.levels[5]
@@ -757,7 +754,7 @@ if __name__ == "__main__":
         w._refresh()
         for _ in range(15):
             app.processEvents()
-        shot = os.path.join(HERE, "_selftest_number.png")
+        shot = os.path.join(output_dir(), "_selftest_number.png")
         w.grab().save(shot)
         print("NUMBER SELFTEST OK ->", shot, os.path.getsize(shot), "字节")
         w.close()

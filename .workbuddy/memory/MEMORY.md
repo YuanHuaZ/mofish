@@ -25,7 +25,11 @@ Windows + PySide6 桌面游戏合集（六合一单 exe）。环境：
    禁止裸 `import engine`（同进程会串味）。新包要加 `__init__.py`。
 2. **数据文件**用 `shared.common.load_game_json(name, folder)` / `find_game_data`，
    查找顺序 `_MEIPASS/<folder>/` → `_MEIPASS/` → 项目根/<folder>/；
-   打包时 `--add-data "<src>;<folder名>"`。存档目录 = exe / 项目根目录。
+   打包时 `--add-data "<src>;<folder名>"`。
+   **存档目录 = `shared.common.data_dir()`**（<exe 或项目根>/saves/，不可写则退 AppData/saves/），
+   读写存档一律用 `BaseStore` / `load_save` / `remove_save`，**不要自己拼路径、不要写 HERE/ROOT**。
+   自检产物用 `shared.common.output_dir()`（<exe 或项目根>/_selftest/），与存档分开。
+   根目录若出现旧版散落 `*_save.json`，首次 `data_dir()` 调用会自动搬进 `saves/`（`SAVE_FILES` 清单需同步）。
 3. **新增游戏要动四处**：`hall/launcher.py` 的 `GAMES` + `_stat_xxx()`；
    `main.py` 自检加引擎校验（界面截图循环会自动带上）；`build_exe.py` 的 `DATA_FILES`
    与 `HIDDEN`；新建 `启动<游戏>.bat`。
@@ -54,7 +58,10 @@ Windows + PySide6 桌面游戏合集（六合一单 exe）。环境：
 
 `safe-delete` 保护会拦下**单次超过 50 个文件**的删除（fail-closed）。
 `build/` 有 95 个文件 → 必须**按子目录分批** `rm -rf`，否则整条命令被拒绝。
-测试产物清单：`selftest.log`、`selftest_shots/`、`*_save.json`、`*/_selftest_*.png`、`build/`。
+测试产物清单：`_selftest/`（截图 + selftest.log，全部集中在此）、`saves/`（自检跑出的空壳存档）、`build/`。
+`.gitignore`：`saves/*` + `!saves/.gitkeep`（**目录必须常驻，`saves/.gitkeep` 让空目录也能进版本库**）、
+`_selftest/`、`build/`、`__pycache__/`。
+**清理产物时不要删 `saves/` 本身**——只清里面的 `*_save.json`，保留 `.gitkeep`。
 
 ## 用户偏好
 

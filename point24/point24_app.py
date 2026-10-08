@@ -29,7 +29,7 @@ from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT,
                            C_DIM, C_FAINT, C_ACCENT, C_ACCENT2, C_DANGER, C_OK,
                            C_GOLD, rgba, mk_button, ToolButton, card, stat_row,
                            vscroll, load_game_json, BaseStore, GameWindow,
-                           flash_status, fmt_time)  # noqa: E402
+                           flash_status, fmt_time, output_dir)  # noqa: E402
 
 OPS = [("+", "+ 加"), ("-", "− 减"), ("*", "× 乘"), ("/", "÷ 除")]
 TIER_HINT = {"自动": "每连过 3 题自动升一档"}
@@ -687,7 +687,7 @@ if __name__ == "__main__":
         w._refresh()
         for _ in range(15):
             app.processEvents()
-        shot = os.path.join(HERE, "_selftest_point24.png")
+        shot = os.path.join(output_dir(), "_selftest_point24.png")
         w.grab().save(shot)
         print("POINT24 SELFTEST OK ->", shot, os.path.getsize(shot), "字节")
         w.close()

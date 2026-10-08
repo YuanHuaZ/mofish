@@ -26,7 +26,7 @@ def selftest(app):
     import importlib
     import traceback
     import time
-    from shared.common import data_dir, resource_dir
+    from shared.common import data_dir, resource_dir, output_dir
 
     lines = []
     ok_all = True
@@ -58,7 +58,7 @@ def selftest(app):
         pass
     log("-" * 62)
 
-    outdir = os.path.join(data_dir(), "selftest_shots")
+    outdir = os.path.join(output_dir(), "selftest_shots")
     os.makedirs(outdir, exist_ok=True)
 
     def shoot(win, name):
@@ -342,7 +342,7 @@ def selftest(app):
         except Exception:
             pass
     try:
-        with open(os.path.join(data_dir(), "selftest.log"), "w", encoding="utf-8") as f:
+        with open(os.path.join(output_dir(), "selftest.log"), "w", encoding="utf-8") as f:
             f.write(text + "\n")
     except Exception:
         pass

@@ -27,7 +27,7 @@ from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_D
                     C_FAINT, C_ACCENT, C_ACCENT2, C_DANGER, C_OK, C_GOLD,
                     rgba, mk_button, ToolButton, card, stat_row, vscroll,
                     load_game_json, BaseStore, GameWindow, flash_status, fmt_time,
-                    WorkerKeeper)  # noqa: E402
+                    WorkerKeeper, output_dir)  # noqa: E402
 
 # 棋子配色（按尺寸区分角色）
 PIECE_STYLE = {
@@ -814,7 +814,7 @@ if __name__ == "__main__":
         w._refresh()
         for _ in range(10):
             app.processEvents()
-        shot = os.path.join(HERE, "_selftest_klotski.png")
+        shot = os.path.join(output_dir(), "_selftest_klotski.png")
         w.grab().save(shot)
         print("KLOTSKI SELFTEST OK ->", shot, os.path.getsize(shot), "字节")
         w.close()

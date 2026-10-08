@@ -23,7 +23,8 @@ from gomoku import engine as GE  # noqa: E402
 from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_DIM,
                     C_FAINT, C_ACCENT, C_ACCENT2, C_DANGER, C_OK, C_GOLD,
                     rgba, mk_button, ToolButton, card, stat_row, vscroll,
-                    BaseStore, GameWindow, flash_status, WorkerKeeper)  # noqa: E402
+                    BaseStore, GameWindow, flash_status, WorkerKeeper,
+                    output_dir)  # noqa: E402
 from shared.lan_dialog import ask_lan  # noqa: E402
 
 N = GE.SIZE
@@ -849,7 +850,7 @@ if __name__ == "__main__":
         w._refresh()
         for _ in range(10):
             app.processEvents()
-        shot = os.path.join(HERE, "_selftest_gomoku.png")
+        shot = os.path.join(output_dir(), "_selftest_gomoku.png")
         w.grab().save(shot)
         print("GOMOKU SELFTEST OK ->", shot, os.path.getsize(shot), "字节")
         w.close()

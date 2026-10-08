@@ -83,6 +83,9 @@ mofish/
 └── gomoku/                     ← 五子棋
     ├── gomoku_app.py  engine.py（棋型打分 AI）
     └── 启动五子棋.bat
+
+saves/                          ← 存档目录（运行时自动创建，6 个 *_save.json）
+_selftest/                      ← 自检产物（仅 --selftest 时生成，可随手删）
 ```
 
 游戏之间只用 `shared/common.py` 通信；每个游戏模块都能**单独运行**（例如 `python klotski/klotski_app.py`），
@@ -90,14 +93,19 @@ mofish/
 
 ## 存档
 
-所有进度、战绩都存在 **exe（或项目根目录）同目录**的 JSON 里：
+所有进度、战绩都收在 **exe（或项目根目录）同级的 `saves/` 文件夹**里，不会散落在外面：
 
 ```
-sudoku_save.json    klotski_save.json    number_save.json
-xiangqi_save.json   gomoku_save.json     point24_save.json
+saves/
+├── sudoku_save.json     klotski_save.json     number_save.json
+├── xiangqi_save.json    gomoku_save.json      point24_save.json
 ```
 
-若该目录不可写（例如放在只读盘），会自动退回 `%APPDATA%` 下的用户目录。删掉这些文件即可重置全部记录。
+删掉整个 `saves/` 文件夹即可重置全部记录；只删其中某个文件，就只重置那一款游戏。
+若 exe 所在目录不可写（例如放在只读盘），会自动退回 `%APPDATA%` 下的 `saves/`。
+
+> 从旧版本升上来的话不用担心：首次运行时，会自动把散落在 exe 同目录的 `*_save.json` 搬进 `saves/`，进度不丢。
+> 自检产物（截图 / 日志）另外放在 `_selftest/`，不会混进存档目录。
 
 ## 从源码运行 / 打包
 

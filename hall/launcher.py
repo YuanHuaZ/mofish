@@ -1,57 +1,57 @@
 # -*- coding: utf-8 -*-
 """
-摸鱼小游戏 · 大厅（PySide6 / Qt）
+摸鱼小游戏 · 游戏大厅
 
-启动后先进入这里：四张游戏卡片（数独 / 华容道 / 中国象棋 / 五子棋），
-点卡片进入对应游戏窗口；关闭游戏窗口自动回到大厅，并刷新战绩。
+一个轻量、离线优先的游戏启动页：卡片展示每款小游戏，关闭游戏后自动回到这里并刷新本地战绩。
 """
+import importlib
 import os
 import sys
-import importlib
 
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QColor, QPainter, QFont, QPen, QBrush, QLinearGradient
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                               QHBoxLayout, QGridLayout, QLabel, QFrame)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QRadialGradient
+from PySide6.QtWidgets import (
+    QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow,
+    QPushButton, QVBoxLayout, QWidget,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_DIM,
-                    C_FAINT, C_ACCENT, C_ACCENT2, C_GOLD, C_OK, C_DANGER,
-                    rgba, load_save, load_game_json)  # noqa: E402
+from shared.common import (  # noqa: E402
+    C_ACCENT, C_ACCENT2, C_BG, C_DIM, C_FAINT, C_GOLD, C_LINE, C_LINE2,
+    C_OK, C_PANEL, C_PANEL2, C_TEXT, load_game_json, load_save, rgba,
+)
 
 APP_TITLE = "摸鱼小游戏"
 
 # key -> (模块名, 类名, emoji, 名称, 说明, 主题色, 战绩函数)
 GAMES = [
     ("sudoku", "sudoku.sudoku_app", "SudokuWindow", "🔢", "数独 100 关",
-     "100 关由易到难的自适应难度题库，四个技巧档位、笔记与提示、自动存档计时。",
+     "由易到难的自适应题库，支持笔记、提示、撤销与自动存档。",
      "#38bdf8", "_stat_sudoku"),
     ("klotski", "klotski.klotski_app", "KlotskiWindow", "🧩", "华容道 · 经典布局",
-     "不规则棋子：2x2 曹操 + 关羽 + 四将 + 四卒，拖动曹操从下方出口逃走；"
-     "30 关按最少步数递增，自带 BFS 最优解提示与自动演示。",
+     "拖动曹操走出出口，30 个关卡按最少步数递增，并带 BFS 最优解提示。",
      "#f0b23c", "_stat_klotski"),
     ("number", "numberklotski.number_app", "NumberPuzzleWindow", "🧮", "数字华容道",
-     "数字滑块：3×3 到 6×6，把 1~N²-1 依次归位。点同行/列可整排滑动，"
-     "归位方块变绿，3×3 支持最优提示。",
+     "3×3 到 6×6 数字滑块，整排移动，归位方块会变成清爽的绿色。",
      "#a78bfa", "_stat_number"),
     ("xiangqi", "xiangqi.xiangqi_app", "XiangqiWindow", "♟", "中国象棋",
-     "完整规则（蹩马腿 / 塞象眼 / 炮翻山 / 飞将）：人机对战或双人切磋，含中文棋谱。",
+     "完整规则的人机对战，也可以和同一局域网内的朋友来一盘。",
      "#e5484d", "_stat_xiangqi"),
     ("gomoku", "gomoku.gomoku_app", "GomokuWindow", "⚫", "五子棋",
-     "15x15 无禁手自由规则，简单 / 普通 / 困难三档 AI，落子编号、悔棋与战绩统计。",
+     "15×15 棋盘，三档 AI、落子编号、悔棋与战绩统计一应俱全。",
      "#22c55e", "_stat_gomoku"),
     ("point24", "point24.point24_app", "Point24Window", "🃏", "24 点",
-     "无限关随机出题：4 个数各用一次凑出 24。点牌 + 运算符合并，加减乘除都能输入；"
-     "连续通关会自动升档（入门 → 大师）。",
+     "四个数字各用一次凑出 24，连续通关会自动升档挑战更难题目。",
      "#f472b6", "_stat_point24"),
 ]
 
 
 # ------------------------------------------------------------------ 战绩
+
 def _level_total(name, folder, fallback):
     lv = load_game_json(name, folder).get("levels") or []
     return len(lv) or fallback
@@ -84,26 +84,25 @@ def _stat_number():
 def _stat_xiangqi():
     d = load_save("xiangqi_save.json")
     s = d.get("stats") or {}
-    tot = (s.get("win", 0) or 0) + (s.get("lose", 0) or 0) + (s.get("draw", 0) or 0)
-    if not tot:
+    total = sum(int(s.get(x, 0) or 0) for x in ("win", "lose", "draw"))
+    if not total:
         return "还没有对局记录"
-    return "人机 %d 胜 / %d 负 / %d 和" % (s.get("win", 0), s.get("lose", 0),
-                                          s.get("draw", 0))
+    return "人机 %d 胜 / %d 负 / %d 和" % (s.get("win", 0), s.get("lose", 0), s.get("draw", 0))
 
 
 def _stat_gomoku():
     d = load_save("gomoku_save.json")
     s = d.get("stats") or {}
-    tot = (s.get("win", 0) or 0) + (s.get("lose", 0) or 0) + (s.get("draw", 0) or 0)
-    if not tot:
+    total = sum(int(s.get(x, 0) or 0) for x in ("win", "lose", "draw"))
+    if not total:
         return "还没有对局记录"
-    rate = s.get("win", 0) * 100.0 / tot
+    rate = s.get("win", 0) * 100.0 / total
     return "人机 %d 胜 / %d 负 / %d 平 · 胜率 %.0f%%" % (
         s.get("win", 0), s.get("lose", 0), s.get("draw", 0), rate)
 
 
 def _stat_point24():
-    st = (load_save("point24_save.json").get("stats") or {})
+    st = load_save("point24_save.json").get("stats") or {}
     solved = int(st.get("solved", 0) or 0)
     if not solved:
         return "还没有通关记录"
@@ -112,184 +111,338 @@ def _stat_point24():
     return "已通关 %d 题 · 最高连击 %d%s" % (solved, st.get("bestStreak", 0) or 0, extra)
 
 
-STAT_FUNCS = {"_stat_sudoku": _stat_sudoku, "_stat_klotski": _stat_klotski,
-              "_stat_number": _stat_number, "_stat_xiangqi": _stat_xiangqi,
-              "_stat_gomoku": _stat_gomoku, "_stat_point24": _stat_point24}
+STAT_FUNCS = {
+    "_stat_sudoku": _stat_sudoku,
+    "_stat_klotski": _stat_klotski,
+    "_stat_number": _stat_number,
+    "_stat_xiangqi": _stat_xiangqi,
+    "_stat_gomoku": _stat_gomoku,
+    "_stat_point24": _stat_point24,
+}
+
+
+class Backdrop(QWidget):
+    """大厅背景：低对比度渐变与网格，让页面更有层次但不干扰内容。"""
+
+    def paintEvent(self, event):  # noqa: N802
+        del event
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.fillRect(self.rect(), QColor(C_BG))
+
+        glow = QRadialGradient(self.width() * 0.88, self.height() * 0.03, self.width() * 0.72)
+        glow.setColorAt(0.0, QColor(rgba(C_ACCENT2, 0.10)))
+        glow.setColorAt(0.58, QColor(rgba(C_ACCENT, 0.025)))
+        glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.fillRect(self.rect(), QBrush(glow))
+
+        left_glow = QRadialGradient(self.width() * 0.04, self.height() * 0.84, self.width() * 0.48)
+        left_glow.setColorAt(0.0, QColor(rgba(C_GOLD, 0.045)))
+        left_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.fillRect(self.rect(), QBrush(left_glow))
+
+        p.setPen(QPen(QColor(rgba(C_LINE2, 0.20)), 1))
+        step = 48
+        for x in range(0, self.width(), step):
+            p.drawLine(x, 0, x, self.height())
+        for y in range(0, self.height(), step):
+            p.drawLine(0, y, self.width(), y)
 
 
 class GameCard(QFrame):
     clicked = Signal(str)
 
-    def __init__(self, key, emoji, name, desc, accent, stat_text, parent=None):
+    def __init__(self, key, index, emoji, name, desc, accent, stat_text, parent=None):
         super().__init__(parent)
         self.key = key
         self.accent = accent
+        self._hover = False
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedHeight(178)
-        self.setMinimumWidth(300)
+        self.setFixedHeight(172)
+        self.setMinimumWidth(330)
         self.setAttribute(Qt.WA_Hover, True)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(20, 16, 20, 16)
-        lay.setSpacing(6)
+        lay.setContentsMargins(20, 17, 18, 16)
+        lay.setSpacing(10)
 
         top = QHBoxLayout()
-        top.setSpacing(11)
-        self.lb_emoji = QLabel(emoji)
-        self.lb_emoji.setFixedSize(40, 40)
-        self.lb_emoji.setAlignment(Qt.AlignCenter)
-        self.lb_emoji.setStyleSheet("font-size:24px;")
-        top.addWidget(self.lb_emoji, 0, Qt.AlignVCenter)
+        top.setSpacing(12)
+        self.lb_icon = QLabel(emoji)
+        self.lb_icon.setAlignment(Qt.AlignCenter)
+        self.lb_icon.setFixedSize(48, 48)
+        self.lb_icon.setStyleSheet(
+            "background:%s;border:1px solid %s;border-radius:15px;font-size:26px;" %
+            (rgba(accent, 0.14), rgba(accent, 0.34)))
+        top.addWidget(self.lb_icon)
+
+        title_box = QVBoxLayout()
+        title_box.setSpacing(2)
+        self.lb_index = QLabel("0%d  /  GAME" % (index + 1))
+        self.lb_index.setStyleSheet(
+            "color:%s;font-size:10px;font-weight:700;letter-spacing:1px;" % rgba(accent, 0.92))
         self.lb_name = QLabel(name)
-        self.lb_name.setStyleSheet("font-size:19px;font-weight:700;color:%s;" % C_TEXT)
-        top.addWidget(self.lb_name, 0, Qt.AlignVCenter)
-        top.addStretch(1)
-        self.lb_go = QLabel("进入 →")
-        self.lb_go.setStyleSheet("font-size:12.5px;font-weight:700;color:%s;" % accent)
-        top.addWidget(self.lb_go, 0, Qt.AlignVCenter)
+        self.lb_name.setStyleSheet("color:%s;font-size:18px;font-weight:800;" % C_TEXT)
+        title_box.addWidget(self.lb_index)
+        title_box.addWidget(self.lb_name)
+        top.addLayout(title_box, 1)
+
+        self.btn_go = QPushButton("开始  ›")
+        self.btn_go.setCursor(Qt.PointingHandCursor)
+        self.btn_go.setFixedHeight(30)
+        self.btn_go.setStyleSheet(
+            "QPushButton{background:%s;color:%s;border:1px solid %s;border-radius:9px;"
+            "padding:0 10px;font-size:12px;font-weight:700;}"
+            "QPushButton:hover{background:%s;color:#fff;border-color:%s;}" %
+            (rgba(accent, 0.10), accent, rgba(accent, 0.38), accent, accent))
+        self.btn_go.clicked.connect(lambda: self.clicked.emit(self.key))
+        top.addWidget(self.btn_go, 0, Qt.AlignVCenter)
         lay.addLayout(top)
 
         d = QLabel(desc)
         d.setWordWrap(True)
-        d.setStyleSheet("color:%s;font-size:12px;" % C_DIM)
-        d.setMinimumHeight(46)
+        d.setMinimumHeight(40)
+        d.setStyleSheet("color:%s;font-size:12px;line-height:1.35;" % C_DIM)
         lay.addWidget(d)
         lay.addStretch(1)
 
-        self.lb_stat = QLabel(stat_text)
-        self.lb_stat.setStyleSheet("color:%s;font-size:12px;font-weight:600;" % accent)
-        lay.addWidget(self.lb_stat)
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background:%s;" % C_LINE)
+        lay.addWidget(divider)
 
-        self._hover = False
+        bottom = QHBoxLayout()
+        bottom.setSpacing(8)
+        self.lb_dot = QLabel("●")
+        self.lb_dot.setStyleSheet("color:%s;font-size:10px;" % accent)
+        self.lb_stat = QLabel(stat_text)
+        self.lb_stat.setStyleSheet("color:%s;font-size:11.5px;font-weight:600;" % C_DIM)
+        bottom.addWidget(self.lb_dot)
+        bottom.addWidget(self.lb_stat, 1)
+        self.lb_arrow = QLabel("↗")
+        self.lb_arrow.setStyleSheet("color:%s;font-size:16px;font-weight:700;" % C_FAINT)
+        bottom.addWidget(self.lb_arrow)
+        lay.addLayout(bottom)
         self._apply_style()
 
     def _apply_style(self):
         if self._hover:
-            bg = "qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 %s,stop:1 %s)" % (
-                C_PANEL2, C_PANEL)
-            border = rgba(self.accent, 0.55)
+            bg = "qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 %s,stop:1 %s)" % (C_PANEL2, C_PANEL)
+            border = rgba(self.accent, 0.62)
         else:
-            bg = "qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 %s,stop:1 %s)" % (
-                C_PANEL, "#111721")
+            bg = "qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 %s,stop:1 #111721)" % C_PANEL
             border = C_LINE
         self.setStyleSheet(
-            "GameCard{background:%s;border:1px solid %s;border-radius:14px;}" % (bg, border))
+            "GameCard{background:%s;border:1px solid %s;border-radius:18px;}" % (bg, border))
+        self.lb_arrow.setStyleSheet(
+            "color:%s;font-size:16px;font-weight:700;" % (self.accent if self._hover else C_FAINT))
 
-    def enterEvent(self, ev):
+    def enterEvent(self, event):  # noqa: N802
         self._hover = True
         self._apply_style()
-        self.update()
+        super().enterEvent(event)
 
-    def leaveEvent(self, ev):
+    def leaveEvent(self, event):  # noqa: N802
         self._hover = False
         self._apply_style()
-        self.update()
+        super().leaveEvent(event)
 
-    def mouseReleaseEvent(self, ev):
-        if ev.button() == Qt.LeftButton and self.rect().contains(ev.position().toPoint()):
+    def mouseReleaseEvent(self, event):  # noqa: N802
+        if event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
             self.clicked.emit(self.key)
+        super().mouseReleaseEvent(event)
 
-    def paintEvent(self, ev):
-        super().paintEvent(ev)
+    def paintEvent(self, event):  # noqa: N802
+        super().paintEvent(event)
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing, True)
-        # 左侧主题色竖条
-        p.setBrush(QBrush(QColor(self.accent if self._hover else rgba(self.accent, 0.55))))
+        p.setRenderHint(QPainter.Antialiasing)
         p.setPen(Qt.NoPen)
-        p.drawRoundedRect(0, 14, 4, self.height() - 28, 2, 2)
+        p.setBrush(QBrush(QColor(self.accent)))
+        p.drawRoundedRect(18, 0, self.width() - 36, 3, 1.5, 1.5)
+
+
+class InfoPanel(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(268)
+        self.setStyleSheet(
+            "InfoPanel{background:%s;border:1px solid %s;border-radius:20px;}" % (C_PANEL, C_LINE))
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 21, 20, 20)
+        lay.setSpacing(13)
+
+        eyebrow = QLabel("YOUR PLAYGROUND")
+        eyebrow.setStyleSheet("color:%s;font-size:10px;font-weight:800;letter-spacing:1.5px;" % C_ACCENT2)
+        lay.addWidget(eyebrow)
+        title = QLabel("今日状态")
+        title.setStyleSheet("font-size:22px;font-weight:800;color:%s;" % C_TEXT)
+        lay.addWidget(title)
+
+        self.lb_total = QLabel("统计中…")
+        self.lb_total.setStyleSheet("color:%s;font-size:13px;font-weight:600;" % C_DIM)
+        lay.addWidget(self.lb_total)
+
+        line = QFrame()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background:%s;" % C_LINE)
+        lay.addWidget(line)
+
+        section = QLabel("快捷入口")
+        section.setStyleSheet("color:%s;font-size:11px;font-weight:700;" % C_FAINT)
+        lay.addWidget(section)
+        shortcuts = [
+            ("1 - 6", "快速启动游戏"),
+            ("Esc", "返回大厅"),
+            ("本地", "无需联网也能玩"),
+        ]
+        for key, text in shortcuts:
+            row = QHBoxLayout()
+            row.setSpacing(9)
+            pill = QLabel(key)
+            pill.setAlignment(Qt.AlignCenter)
+            pill.setFixedWidth(50)
+            pill.setStyleSheet(
+                "color:%s;background:%s;border:1px solid %s;border-radius:7px;"
+                "padding:4px 2px;font-size:10px;font-weight:800;" %
+                (C_ACCENT2, rgba(C_ACCENT2, 0.10), rgba(C_ACCENT2, 0.25)))
+            lb = QLabel(text)
+            lb.setStyleSheet("color:%s;font-size:12px;" % C_DIM)
+            row.addWidget(pill)
+            row.addWidget(lb, 1)
+            lay.addLayout(row)
+
+        lay.addStretch(1)
+        note = QFrame()
+        note.setStyleSheet(
+            "QFrame{background:%s;border:1px solid %s;border-radius:13px;}" %
+            (rgba(C_GOLD, 0.08), rgba(C_GOLD, 0.23)))
+        note_lay = QVBoxLayout(note)
+        note_lay.setContentsMargins(12, 11, 12, 11)
+        note_lay.setSpacing(5)
+        note_title = QLabel("✦  摸鱼小贴士")
+        note_title.setStyleSheet("color:%s;font-size:12px;font-weight:700;" % C_GOLD)
+        note_text = QLabel("想放松几分钟？先从数独或 24 点开始吧。所有进度都会保存在本地。")
+        note_text.setWordWrap(True)
+        note_text.setStyleSheet("color:%s;font-size:11px;line-height:1.35;" % C_DIM)
+        note_lay.addWidget(note_title)
+        note_lay.addWidget(note_text)
+        lay.addWidget(note)
+
+        self.lb_where = QLabel("")
+        self.lb_where.setWordWrap(True)
+        self.lb_where.setStyleSheet("color:%s;font-size:10px;" % C_FAINT)
+        lay.addWidget(self.lb_where)
 
 
 class Launcher(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(APP_TITLE)
-        self.resize(1200, 790)
-        self.setMinimumSize(1000, 700)
+        self.resize(1240, 820)
+        self.setMinimumSize(1080, 760)
         self.setStyleSheet(
-            "QMainWindow{background:%s;}QLabel{color:%s;}"
+            "QMainWindow{background:%s;}"
             "QWidget{font-family:'Microsoft YaHei UI','Microsoft YaHei',sans-serif;}"
-            % (C_BG, C_TEXT))
+            "QLabel{color:%s;}"
+            "QToolTip{background:%s;color:%s;border:1px solid %s;padding:5px 7px;}" %
+            (C_BG, C_TEXT, C_PANEL2, C_TEXT, C_LINE2))
         self.game_win = None
         self.cards = []
         self._build_ui()
         self._refresh_stats()
 
     def _build_ui(self):
-        central = QWidget()
+        central = Backdrop()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
-        root.setContentsMargins(26, 20, 26, 18)
-        root.setSpacing(14)
+        root.setContentsMargins(30, 22, 30, 18)
+        root.setSpacing(15)
 
-        head = QHBoxLayout()
-        t = QLabel(APP_TITLE)
-        t.setStyleSheet("font-size:26px;font-weight:800;letter-spacing:1px;")
-        head.addWidget(t)
-        chip = QLabel("%d 款小游戏 · 离线可玩" % len(GAMES))
-        chip.setFixedHeight(28)
-        chip.setStyleSheet("color:%s;background:%s;border:1px solid %s;border-radius:11px;"
-                           "padding:0 10px;font-size:11.5px;font-weight:600;"
-                           % (C_ACCENT2, rgba(C_ACCENT2, 0.12), rgba(C_ACCENT2, 0.3)))
-        head.addWidget(chip, 0, Qt.AlignVCenter)
-        head.addStretch(1)
-        tip = QLabel("点击卡片进入游戏　·　游戏中按左上角「返回大厅」或 Esc 回到这里")
-        tip.setStyleSheet("color:%s;font-size:12px;" % C_FAINT)
-        head.addWidget(tip, 0, Qt.AlignVCenter)
-        root.addLayout(head)
+        # 顶部品牌区
+        header = QHBoxLayout()
+        header.setSpacing(14)
+        logo = QLabel("MF")
+        logo.setAlignment(Qt.AlignCenter)
+        logo.setFixedSize(48, 48)
+        logo.setStyleSheet(
+            "color:#07111e;background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            "stop:0 #5ee7ff,stop:1 #4c8dff);border-radius:15px;"
+            "font-size:17px;font-weight:900;letter-spacing:1px;")
+        header.addWidget(logo)
 
-        line = QFrame()
-        line.setFixedHeight(1)
-        line.setStyleSheet("background:%s;" % C_LINE)
-        root.addWidget(line)
+        brand = QVBoxLayout()
+        brand.setSpacing(2)
+        kicker = QLabel("OFFLINE GAME COLLECTION")
+        kicker.setStyleSheet("color:%s;font-size:10px;font-weight:800;letter-spacing:2px;" % C_ACCENT2)
+        headline = QLabel("摸鱼一下，轻松玩一局")
+        headline.setStyleSheet("font-size:28px;font-weight:900;letter-spacing:.5px;color:%s;" % C_TEXT)
+        brand.addWidget(kicker)
+        brand.addWidget(headline)
+        header.addLayout(brand)
+        header.addStretch(1)
 
-        cols = 3 if len(GAMES) > 4 else 2
+        chip = QLabel("●  离线可玩")
+        chip.setAlignment(Qt.AlignCenter)
+        chip.setFixedHeight(30)
+        chip.setStyleSheet(
+            "color:%s;background:%s;border:1px solid %s;border-radius:10px;"
+            "padding:0 11px;font-size:11px;font-weight:700;" %
+            (C_OK, rgba(C_OK, 0.10), rgba(C_OK, 0.30)))
+        header.addWidget(chip, 0, Qt.AlignVCenter)
+        root.addLayout(header)
+
+        intro = QHBoxLayout()
+        intro.setSpacing(8)
+        intro_text = QLabel("六款轻量小游戏，打开即玩。挑一个喜欢的，给自己几分钟专注的空档。")
+        intro_text.setStyleSheet("color:%s;font-size:13px;" % C_DIM)
+        intro.addWidget(intro_text)
+        intro.addStretch(1)
+        hint = QLabel("点击卡片开始  ·  支持键盘 1 - 6")
+        hint.setStyleSheet("color:%s;font-size:11px;" % C_FAINT)
+        intro.addWidget(hint)
+        root.addLayout(intro)
+
+        content = QHBoxLayout()
+        content.setSpacing(18)
+        library = QVBoxLayout()
+        library.setSpacing(12)
+        library_title = QHBoxLayout()
+        library_title.setSpacing(10)
+        title = QLabel("游戏库")
+        title.setStyleSheet("font-size:17px;font-weight:800;color:%s;" % C_TEXT)
+        count = QLabel("%d GAMES" % len(GAMES))
+        count.setStyleSheet("color:%s;font-size:10px;font-weight:800;letter-spacing:1.2px;" % C_FAINT)
+        library_title.addWidget(title)
+        library_title.addWidget(count)
+        library_title.addStretch(1)
+        library.addLayout(library_title)
+
         grid = QGridLayout()
-        grid.setSpacing(14)
-        for idx, (key, mod, cls, emoji, name, desc, accent, statfn) in enumerate(GAMES):
-            c = GameCard(key, emoji, name, desc, accent, "统计中…")
-            c.clicked.connect(self.open_game)
-            self.cards.append((c, statfn))
-            grid.addWidget(c, idx // cols, idx % cols)
-        row, col = len(GAMES) // cols, len(GAMES) % cols
-        grid.addWidget(self._about_card(cols - col), row, col, 1, cols - col)
-        root.addLayout(grid, 1)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(10)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        for idx, (key, _mod, _cls, emoji, name, desc, accent, statfn) in enumerate(GAMES):
+            card = GameCard(key, idx, emoji, name, desc, accent, "统计中…")
+            card.clicked.connect(self.open_game)
+            self.cards.append((card, statfn))
+            grid.addWidget(card, idx // 2, idx % 2)
+        library.addLayout(grid, 1)
+        content.addLayout(library, 1)
+        content.addWidget(InfoPanel(), 0)
+        self.info_panel = content.itemAt(1).widget()
+        root.addLayout(content, 1)
 
-        foot = QHBoxLayout()
-        self.lb_total = QLabel("")
-        self.lb_total.setStyleSheet("color:%s;font-size:12px;" % C_DIM)
-        foot.addWidget(self.lb_total)
-        foot.addStretch(1)
-        self.lb_hint = QLabel("快捷键：" + "　".join("%d %s" % (i + 1, g[4])
-                                          for i, g in enumerate(GAMES)))
-        self.lb_hint.setStyleSheet("color:%s;font-size:12px;" % C_FAINT)
-        foot.addWidget(self.lb_hint)
-        root.addLayout(foot)
-
-    def _about_card(self, span=1):
-        f = QFrame()
-        f.setFixedHeight(178 if span <= 1 else 132)
-        f.setMinimumWidth(300)
-        f.setStyleSheet("QFrame{background:%s;border:1px dashed %s;border-radius:14px;}"
-                        % ("#111721", C_LINE2))
-        lay = QVBoxLayout(f)
-        lay.setContentsMargins(20, 16, 20, 16)
-        lay.setSpacing(6)
-        t = QLabel("关于")
-        t.setStyleSheet("font-size:15px;font-weight:700;color:%s;" % C_DIM)
-        lay.addWidget(t)
-        for line in ("%d 款单机小游戏打包在同一个 exe 中，零联网、零依赖。" % len(GAMES),
-                     "所有进度与战绩都存在 exe 同目录的 * _save.json 里。",
-                     "游戏中按 Esc 或左上角「返回大厅」即可回到本页。"):
-            lb = QLabel(line)
-            lb.setWordWrap(True)
-            lb.setStyleSheet("color:%s;font-size:12px;" % C_FAINT)
-            lay.addWidget(lb)
-        lay.addStretch(1)
-        self.lb_where = QLabel("")
-        self.lb_where.setWordWrap(True)
-        self.lb_where.setStyleSheet("color:%s;font-size:11px;" % C_FAINT)
-        lay.addWidget(self.lb_where)
-        return f
+        footer = QHBoxLayout()
+        footer.setSpacing(8)
+        footer_text = QLabel("✦  本地存档会在退出游戏时自动更新")
+        footer_text.setStyleSheet("color:%s;font-size:11px;" % C_FAINT)
+        footer.addWidget(footer_text)
+        footer.addStretch(1)
+        version = QLabel("Mofish  /  Play a little, feel a lot")
+        version.setStyleSheet("color:%s;font-size:10px;letter-spacing:.4px;" % C_FAINT)
+        footer.addWidget(version)
+        root.addLayout(footer)
 
     def _refresh_stats(self):
         for card, statfn in self.cards:
@@ -297,24 +450,27 @@ class Launcher(QMainWindow):
                 card.lb_stat.setText(STAT_FUNCS[statfn]())
             except Exception:
                 card.lb_stat.setText("暂无记录")
-        total = 0
-        d = load_save("sudoku_save.json").get("levels") or {}
-        total += sum((v.get("plays") or 0) for v in d.values())
-        for name in ("klotski_save.json", "number_save.json"):
-            lv = load_save(name).get("levels") or {}
-            total += sum((v.get("clears") or 0) for v in lv.values())
-        for name in ("xiangqi_save.json", "gomoku_save.json"):
-            s = (load_save(name).get("stats") or {})
-            total += sum(int(s.get(x, 0) or 0) for x in ("win", "lose", "draw"))
-        total += int((load_save("point24_save.json").get("stats") or {}).get("solved", 0) or 0)
-        self.lb_total.setText("累计游玩 %d 局" % total if total else "本地存档：还没开始玩过")
-        try:
-            from shared.common import data_dir
-            self.lb_where.setText("存档目录：%s" % data_dir())
-        except Exception:
-            pass
 
-    # -------- 打开游戏
+        total = 0
+        sudoku = load_save("sudoku_save.json").get("levels") or {}
+        total += sum((v.get("plays") or 0) for v in sudoku.values())
+        for name in ("klotski_save.json", "number_save.json"):
+            levels = load_save(name).get("levels") or {}
+            total += sum((v.get("clears") or 0) for v in levels.values())
+        for name in ("xiangqi_save.json", "gomoku_save.json"):
+            stats = load_save(name).get("stats") or {}
+            total += sum(int(stats.get(x, 0) or 0) for x in ("win", "lose", "draw"))
+        total += int((load_save("point24_save.json").get("stats") or {}).get("solved", 0) or 0)
+
+        panel = getattr(self, "info_panel", None)
+        if panel is not None:
+            panel.lb_total.setText("累计游玩 %d 局" % total if total else "还没有开始游戏，等你来挑战")
+            try:
+                from shared.common import data_dir
+                panel.lb_where.setText("存档目录：%s" % data_dir())
+            except Exception:
+                pass
+
     def open_game(self, key):
         info = next((g for g in GAMES if g[0] == key), None)
         if not info:
@@ -346,29 +502,28 @@ class Launcher(QMainWindow):
         self.raise_()
         self.activateWindow()
 
-    # -------- 键盘
-    def keyPressEvent(self, ev):
-        if Qt.Key_1 <= ev.key() <= Qt.Key_9:
-            idx = ev.key() - Qt.Key_1
+    def keyPressEvent(self, event):  # noqa: N802
+        if Qt.Key_1 <= event.key() <= Qt.Key_9:
+            idx = event.key() - Qt.Key_1
             if idx < len(GAMES):
                 self.open_game(GAMES[idx][0])
                 return
-        super().keyPressEvent(ev)
+        super().keyPressEvent(event)
 
-    def closeEvent(self, ev):
+    def closeEvent(self, event):  # noqa: N802
         if self.game_win is not None:
             try:
                 self.game_win.close()
             except Exception:
                 pass
-        super().closeEvent(ev)
+        super().closeEvent(event)
         QApplication.quit()
 
 
 def launch():
-    w = Launcher()
-    w.show()
-    return w
+    window = Launcher()
+    window.show()
+    return window
 
 
 if __name__ == "__main__":
@@ -376,6 +531,6 @@ if __name__ == "__main__":
     app.setApplicationName(APP_TITLE)
     app.setStyle("Fusion")
     app.setQuitOnLastWindowClosed(False)
-    w = Launcher()
-    w.show()
+    window = Launcher()
+    window.show()
     sys.exit(app.exec())

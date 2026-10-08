@@ -41,6 +41,16 @@ C_GOLD = "#f0b23c"
 C_RED = "#e5484d"
 C_BLACK = "#9aa7b8"
 
+# 每款游戏拥有自己的强调色，公共框架和控件保持一致。
+GAME_ACCENTS = {
+    "sudoku": "#38bdf8",
+    "klotski": "#f0b23c",
+    "number": "#a78bfa",
+    "xiangqi": "#e5484d",
+    "gomoku": "#22c55e",
+    "point24": "#f472b6",
+}
+
 
 def rgba(hex_color, alpha):
     """Qt 的 8 位十六进制是 #AARRGGBB，容易写错，统一用 rgba() 表达透明色"""
@@ -56,22 +66,71 @@ def resource_dir():
     return HERE
 
 
+SAVE_DIRNAME = "saves"
+# 所有游戏的存档文件名（用于旧版本存档的自动归位）
+SAVE_FILES = ("sudoku_save.json", "klotski_save.json", "number_save.json",
+              "xiangqi_save.json", "gomoku_save.json", "point24_save.json")
+
+_migrated = False
+
+
+def base_dir():
+    """可写的基目录：打包后是 exe 所在目录，源码运行是项目根目录"""
+    return os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else ROOT
+
+
+def _writable(d):
+    """探测目录是否可写（顺便确保它存在）"""
+    try:
+        os.makedirs(d, exist_ok=True)
+        probe = os.path.join(d, ".w_test")
+        with open(probe, "w") as f:
+            f.write("1")
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
+
+def _migrate_outer_saves(base, save_dir):
+    """把旧版本散落在外的存档收进 saves/（只做一次）"""
+    global _migrated
+    if _migrated:
+        return
+    _migrated = True
+    if os.path.abspath(base) == os.path.abspath(save_dir):
+        return
+    for name in SAVE_FILES:
+        old = os.path.join(base, name)
+        new = os.path.join(save_dir, name)
+        if os.path.exists(old) and not os.path.exists(new):
+            try:
+                os.replace(old, new)
+            except Exception:
+                pass
+
+
 def data_dir():
-    """可写存档目录：优先 exe / 项目根目录，不可写则退回 AppData"""
-    base = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else ROOT
-    for cand in (base, QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)):
-        if not cand:
+    """可写存档目录：exe / 项目根目录下的 saves/，不可写则退回 AppData/saves"""
+    base = base_dir()
+    for root in (base, QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)):
+        if not root:
             continue
-        try:
-            os.makedirs(cand, exist_ok=True)
-            probe = os.path.join(cand, ".w_test")
-            with open(probe, "w") as f:
-                f.write("1")
-            os.remove(probe)
-            return cand
-        except Exception:
-            continue
-    return ROOT
+        d = os.path.join(root, SAVE_DIRNAME)
+        if _writable(d):
+            _migrate_outer_saves(base, d)
+            return d
+    return os.path.join(base, SAVE_DIRNAME)
+
+
+def output_dir():
+    """自检 / 临时产物目录，与存档分开存放，避免污染 saves/"""
+    d = os.path.join(base_dir(), "_selftest")
+    try:
+        os.makedirs(d, exist_ok=True)
+        return d
+    except Exception:
+        return base_dir()
 
 
 def load_json(name):
@@ -116,6 +175,15 @@ def load_save(name):
             return json.load(f)
     except Exception:
         return {}
+
+
+def remove_save(name):
+    """删除某个存档文件（重置进度 / 自检前清场用）"""
+    try:
+        os.remove(os.path.join(data_dir(), name))
+        return True
+    except Exception:
+        return False
 
 
 # ------------------------------------------------------------------ 存档
@@ -181,9 +249,10 @@ def mk_button(text, kind="normal", parent=None):
             % (C_PANEL2, C_DIM, C_LINE, C_DANGER, rgba(C_DANGER, 0.55)))
     else:
         b.setStyleSheet(
-            "QPushButton{background:%s;color:%s;border:1px solid %s;"
-            "border-radius:10px;padding:8px 14px;font-size:13px;}"
-            "QPushButton:hover{background:#232b38;color:%s;border-color:%s;}"
+            "QPushButton{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 %s,stop:1 #151b26);"
+            "color:%s;border:1px solid %s;border-radius:10px;padding:8px 14px;font-size:13px;}"
+            "QPushButton:hover{background:#2a3545;color:%s;border-color:%s;}"
+            "QPushButton:pressed{background:#111722;}"
             % (C_PANEL2, C_DIM, C_LINE, C_TEXT, C_LINE2))
     return b
 
@@ -196,9 +265,10 @@ class ToolButton(QPushButton):
         self.setCursor(Qt.PointingHandCursor)
         self.setFixedHeight(46)
         self.setStyleSheet(
-            "QPushButton{background:%s;color:%s;border:1px solid %s;"
-            "border-radius:10px;font-size:12px;}"
-            "QPushButton:hover{background:#222a37;color:%s;border-color:%s;}"
+            "QPushButton{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 %s,stop:1 #151b26);"
+            "color:%s;border:1px solid %s;border-radius:11px;font-size:12px;font-weight:600;}"
+            "QPushButton:hover{background:#293548;color:%s;border-color:%s;}"
+            "QPushButton:pressed{background:#111722;}"
             "QPushButton:checked{color:%s;border-color:rgba(56,189,248,.55);"
             "background:rgba(56,189,248,.12);}"
             "QPushButton:disabled{color:%s;}"
@@ -210,15 +280,15 @@ class ToolButton(QPushButton):
 
 def card(title=""):
     f = QFrame()
-    f.setStyleSheet("QFrame{background:%s;border:1px solid %s;border-radius:12px;}"
-                    % (C_PANEL, C_LINE))
+    f.setStyleSheet("QFrame{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 %s,stop:1 #121821);"
+                    "border:1px solid %s;border-radius:15px;}" % (C_PANEL, C_LINE))
     lay = QVBoxLayout(f)
-    lay.setContentsMargins(13, 11, 13, 13)
-    lay.setSpacing(8)
+    lay.setContentsMargins(16, 14, 16, 15)
+    lay.setSpacing(9)
     if title:
         lb = QLabel(title)
-        lb.setStyleSheet("color:%s;font-size:11px;font-weight:600;letter-spacing:0.5px;"
-                         % C_FAINT)
+        lb.setStyleSheet("color:%s;font-size:11px;font-weight:800;letter-spacing:1px;"
+                         % C_ACCENT2)
         lay.addWidget(lb)
     return f, lay
 
@@ -255,6 +325,9 @@ def vscroll(inner_widget, width=None):
         "QScrollBar::handle:vertical{background:%s;border-radius:4px;min-height:30px;}"
         "QScrollBar::add-line,QScrollBar::sub-line{height:0;}"
         "QScrollBar::add-page,QScrollBar::sub-page{background:transparent;}" % C_LINE2)
+    sc.viewport().setStyleSheet("background:transparent;")
+    inner_widget.setAttribute(Qt.WA_StyledBackground, True)
+    inner_widget.setStyleSheet("background:transparent;")
     sc.setWidget(inner_widget)
     return sc
 
@@ -271,12 +344,14 @@ class GameWindow(QMainWindow):
     def __init__(self, app_name="摸鱼小游戏"):
         super().__init__()
         self.setWindowTitle("%s · %s" % (self.game_name, app_name))
+        self.accent = GAME_ACCENTS.get(self.game_key, C_ACCENT2)
         self.setStyleSheet(
             "QMainWindow{background:%s;}"
             "QLabel{color:%s;}"
             "QWidget{font-family:'Microsoft YaHei UI','Microsoft YaHei',sans-serif;}"
-            "QToolTip{background:%s;color:%s;border:1px solid %s;padding:4px;}"
-            % (C_BG, C_TEXT, C_PANEL2, C_TEXT, C_LINE))
+            "QStatusBar{background:%s;color:%s;border-top:1px solid %s;padding-left:10px;}"
+            "QToolTip{background:%s;color:%s;border:1px solid %s;padding:5px 7px;}"
+            % (C_BG, C_TEXT, C_PANEL, C_DIM, C_LINE, C_PANEL2, C_TEXT, C_LINE))
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -285,35 +360,42 @@ class GameWindow(QMainWindow):
         self.outer.setSpacing(0)
 
         bar = QFrame()
-        bar.setFixedHeight(46)
-        bar.setStyleSheet("QFrame{background:%s;border-bottom:1px solid %s;}"
-                          % (C_PANEL, C_LINE))
+        bar.setFixedHeight(58)
+        bar.setStyleSheet("QFrame{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 %s,stop:1 #111722);"
+                          "border-bottom:1px solid %s;}" % (C_PANEL, C_LINE))
         bl = QHBoxLayout(bar)
-        bl.setContentsMargins(12, 0, 14, 0)
-        bl.setSpacing(10)
+        bl.setContentsMargins(18, 0, 18, 0)
+        bl.setSpacing(12)
         self.btn_back = QPushButton("←  返回大厅")
         self.btn_back.setCursor(Qt.PointingHandCursor)
-        self.btn_back.setFixedHeight(30)
+        self.btn_back.setFixedHeight(34)
         self.btn_back.setStyleSheet(
-            "QPushButton{background:transparent;color:%s;border:1px solid %s;"
-            "border-radius:8px;padding:3px 12px;font-size:12.5px;}"
-            "QPushButton:hover{color:%s;border-color:%s;background:rgba(56,189,248,.10);}"
-            % (C_DIM, C_LINE, C_TEXT, C_LINE2))
+            "QPushButton{background:%s;color:%s;border:1px solid %s;"
+            "border-radius:10px;padding:4px 14px;font-size:12.5px;font-weight:700;}"
+            "QPushButton:hover{color:%s;border-color:%s;background:%s;}"
+            % (C_PANEL2, C_DIM, C_LINE, C_TEXT, self.accent, rgba(self.accent, .14)))
         self.btn_back.setToolTip("返回游戏大厅（Esc）")
         self.btn_back.clicked.connect(self.close)
         bl.addWidget(self.btn_back)
         t = QLabel("%s  %s" % (self.game_emoji, self.game_name))
-        t.setStyleSheet("font-size:14px;font-weight:700;")
+        t.setStyleSheet(
+            "color:%s;background:%s;border:1px solid %s;border-radius:11px;"
+            "padding:6px 13px;font-size:15px;font-weight:800;" %
+            (C_TEXT, rgba(self.accent, .10), rgba(self.accent, .34)))
         bl.addWidget(t)
         bl.addStretch(1)
         self.bar_right = QHBoxLayout()
         self.bar_right.setSpacing(8)
         bl.addLayout(self.bar_right)
         self.outer.addWidget(bar)
+        self._accent_rule = QFrame()
+        self._accent_rule.setFixedHeight(2)
+        self._accent_rule.setStyleSheet("background:%s;" % self.accent)
+        self.outer.addWidget(self._accent_rule)
 
         self.body = QVBoxLayout()
-        self.body.setContentsMargins(16, 14, 16, 14)
-        self.body.setSpacing(12)
+        self.body.setContentsMargins(20, 18, 20, 18)
+        self.body.setSpacing(16)
         self.outer.addLayout(self.body, 1)
 
     def closeEvent(self, ev):

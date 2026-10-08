@@ -29,7 +29,8 @@ from sudoku import engine as E  # noqa: E402
 from shared.common import (C_BG, C_PANEL, C_PANEL2, C_LINE, C_LINE2, C_TEXT, C_DIM,
                     C_FAINT, C_ACCENT, C_ACCENT2, C_GIVEN, C_USER, C_HINT,
                     C_DANGER, C_OK, rgba, mk_button, ToolButton, card, fmt_time,
-                    resource_dir, data_dir, BaseStore, GameWindow, find_game_data)  # noqa: E402
+                    resource_dir, data_dir, output_dir, BaseStore, GameWindow,
+                    find_game_data)  # noqa: E402
 
 APP_NAME = "数独 100 关"
 MAX_LEVEL = 100
@@ -358,6 +359,7 @@ class LevelDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
+        scroll.viewport().setStyleSheet("background:transparent;")
         inner = QWidget()
         grid = QGridLayout(inner)
         grid.setSpacing(6)
@@ -716,6 +718,9 @@ class SudokuWindow(GameWindow):
             "QScrollBar::handle:vertical{background:%s;border-radius:4px;min-height:30px;}"
             "QScrollBar::add-line,QScrollBar::sub-line{height:0;}"
             "QScrollBar::add-page,QScrollBar::sub-page{background:transparent;}" % C_LINE2)
+        side_scroll.viewport().setStyleSheet("background:transparent;")
+        side_wrap.setAttribute(Qt.WA_StyledBackground, True)
+        side_wrap.setStyleSheet("background:transparent;")
         side_scroll.setWidget(side_wrap)
 
         root.addLayout(left, 1)
@@ -1213,7 +1218,7 @@ def main():
         lines.append("资源目录=%s" % resource_dir())
         lines.append("存档目录=%s" % data_dir())
         try:
-            out = os.path.join(data_dir(), "selftest.png")
+            out = os.path.join(output_dir(), "selftest.png")
             w.grab().save(out)
             lines.append("截图=%s (%s 字节)" % (out, os.path.getsize(out)))
         except Exception as exc:
@@ -1222,7 +1227,7 @@ def main():
         for t in lines:
             print(t)
         try:
-            with open(os.path.join(data_dir(), "selftest.log"), "w", encoding="utf-8") as f:
+            with open(os.path.join(output_dir(), "selftest.log"), "w", encoding="utf-8") as f:
                 f.write(text + "\n")
         except Exception:
             pass
