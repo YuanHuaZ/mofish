@@ -52,6 +52,9 @@ mofish/
 ├── 启动游戏合集.bat
 ├── main.py                     ← 统一入口（含 --selftest 自检）
 ├── build_exe.py                ← 打包脚本
+├── assets/                     ← 图标资源（鲸鱼女仆）
+│   ├── icon.ico                应用图标：exe 文件图标 + 窗口 / 任务栏图标（16~256 多尺寸）
+│   └── logo.png                大厅左上角 logo（256×256，圆形透明底）
 ├── shared/                     ← 公共模块（各游戏共用）
 │   ├── common.py               配色 / 控件 / 存档 / 路径 / 后台线程守护
 │   ├── lan.py                  局域网联机传输（TCP 走棋 + UDP 广播发现房间）

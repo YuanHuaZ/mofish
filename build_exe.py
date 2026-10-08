@@ -31,7 +31,11 @@ DATA_FILES = [
     ("klotski/levels.json", "klotski"),
     ("numberklotski/levels.json", "numberklotski"),
     ("point24/puzzles.json", "point24"),
+    ("assets/icon.ico", "assets"),        # 应用图标（窗口 / 任务栏）
+    ("assets/logo.png", "assets"),        # 大厅 logo
 ]
+
+ICON = os.path.join(ROOT, "assets", "icon.ico")
 
 HIDDEN = [
     "shared.common", "hall.launcher",
@@ -75,6 +79,10 @@ def main():
             "--name", NAME,
             "--distpath", DIST, "--workpath", WORK, "--specpath", SPEC,
             "--log-level", "WARN"]
+    if os.path.exists(ICON):
+        args += ["--icon", ICON]          # exe 文件图标
+    else:
+        print("!! 未找到图标 %s，将使用默认图标" % ICON)
     for src, dest in DATA_FILES:
         p = os.path.join(ROOT, src)
         if not os.path.exists(p):

@@ -354,9 +354,11 @@ def selftest(app):
 
 
 def main():
+    from shared.common import app_icon
     app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setStyle("Fusion")
+    app.setWindowIcon(app_icon())            # 全局应用图标（任务栏 / 窗口）
     app.setQuitOnLastWindowClosed(False)     # 由大厅统一控制退出
     if "--selftest" in sys.argv:
         sys.exit(selftest(app))

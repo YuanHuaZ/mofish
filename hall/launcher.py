@@ -9,7 +9,8 @@ import os
 import sys
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QRadialGradient
+from PySide6.QtGui import (QColor, QPainter, QPen, QBrush, QRadialGradient,
+                           QPixmap)
 from PySide6.QtWidgets import (
     QApplication, QFrame, QGridLayout, QHBoxLayout, QLabel, QMainWindow,
     QPushButton, QVBoxLayout, QWidget,
@@ -22,10 +23,27 @@ if ROOT not in sys.path:
 
 from shared.common import (  # noqa: E402
     C_ACCENT, C_ACCENT2, C_BG, C_DIM, C_FAINT, C_GOLD, C_LINE, C_LINE2,
-    C_OK, C_PANEL, C_PANEL2, C_TEXT, load_game_json, load_save, rgba,
+    C_OK, C_PANEL, C_PANEL2, C_TEXT, app_icon, asset_path, load_game_json,
+    load_save, rgba,
 )
 
 APP_TITLE = "摸鱼小游戏"
+
+
+def logo_pixmap(size):
+    """加载 assets/logo.png 并缩放到逻辑尺寸 size（按屏幕像素比放大，保证高分屏清晰）"""
+    path = asset_path("logo.png")
+    if not path:
+        return QPixmap()
+    pm = QPixmap(path)
+    if pm.isNull():
+        return pm
+    app = QApplication.instance()
+    dpr = app.devicePixelRatio() if app else 1.0
+    pm = pm.scaled(int(round(size * dpr)), int(round(size * dpr)),
+                   Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    pm.setDevicePixelRatio(dpr)
+    return pm
 
 # key -> (模块名, 类名, emoji, 名称, 说明, 主题色, 战绩函数)
 GAMES = [
@@ -338,6 +356,7 @@ class Launcher(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(APP_TITLE)
+        self.setWindowIcon(app_icon())
         self.resize(1240, 820)
         self.setMinimumSize(1080, 760)
         self.setStyleSheet(
@@ -361,13 +380,20 @@ class Launcher(QMainWindow):
         # 顶部品牌区
         header = QHBoxLayout()
         header.setSpacing(14)
-        logo = QLabel("MF")
+        logo = QLabel()
         logo.setAlignment(Qt.AlignCenter)
-        logo.setFixedSize(48, 48)
-        logo.setStyleSheet(
-            "color:#07111e;background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-            "stop:0 #5ee7ff,stop:1 #4c8dff);border-radius:15px;"
-            "font-size:17px;font-weight:900;letter-spacing:1px;")
+        logo.setFixedSize(56, 56)
+        pm = logo_pixmap(56)
+        if pm.isNull():                       # 资源缺失时退回原来的文字标
+            logo.setText("MF")
+            logo.setStyleSheet(
+                "color:#07111e;background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+                "stop:0 #5ee7ff,stop:1 #4c8dff);border-radius:15px;"
+                "font-size:17px;font-weight:900;letter-spacing:1px;")
+        else:
+            logo.setPixmap(pm)
+            logo.setStyleSheet("background:transparent;")
+            logo.setToolTip("摸鱼小游戏 · Mofish")
         header.addWidget(logo)
 
         brand = QVBoxLayout()

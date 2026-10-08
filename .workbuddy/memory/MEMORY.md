@@ -30,6 +30,7 @@ Windows + PySide6 桌面游戏合集（六合一单 exe）。环境：
    读写存档一律用 `BaseStore` / `load_save` / `remove_save`，**不要自己拼路径、不要写 HERE/ROOT**。
    自检产物用 `shared.common.output_dir()`（<exe 或项目根>/_selftest/），与存档分开。
    根目录若出现旧版散落 `*_save.json`，首次 `data_dir()` 调用会自动搬进 `saves/`（`SAVE_FILES` 清单需同步）。
+   **`--selftest` 时 `data_dir()` 自动切到 `_selftest/saves`**，自检绝不覆盖玩家真实存档（踩过坑）。
 3. **新增游戏要动四处**：`hall/launcher.py` 的 `GAMES` + `_stat_xxx()`；
    `main.py` 自检加引擎校验（界面截图循环会自动带上）；`build_exe.py` 的 `DATA_FILES`
    与 `HIDDEN`；新建 `启动<游戏>.bat`。
@@ -39,6 +40,11 @@ Windows + PySide6 桌面游戏合集（六合一单 exe）。环境：
    `closeEvent` 里 `keeper.stop_all()`。
 6. **PyInstaller 坑**：不要用 `--clean`，也不要 `shutil.rmtree(workpath)`（触发批量删除保护）；
    每次用带时间戳的全新 `build/work-<ts>`、`build/dist-<ts>`，exe 用 `copy2` 覆盖到根目录。
+7. **图标 / logo 资源**放 `assets/`（`icon.ico` 多尺寸 16~256 + `logo.png` 256 圆形透明底）。
+   代码里一律用 `shared.common.asset_path(name)` / `app_icon()` 定位，**不要硬编码路径**。
+   `build_exe.py` 要 `--icon assets/icon.ico`，并把两个资源加进 `DATA_FILES`（dest = `assets`），
+   否则打包后 logo 加载不到会退回 "MF" 文字标。窗口图标由 `GameWindow.__init__` 与
+   `Launcher.__init__` 各设一次，`main.py` 再设一次应用级。
 
 ## 局域网联机（象棋 / 五子棋）
 
@@ -58,7 +64,7 @@ Windows + PySide6 桌面游戏合集（六合一单 exe）。环境：
 
 `safe-delete` 保护会拦下**单次超过 50 个文件**的删除（fail-closed）。
 `build/` 有 95 个文件 → 必须**按子目录分批** `rm -rf`，否则整条命令被拒绝。
-测试产物清单：`_selftest/`（截图 + selftest.log，全部集中在此）、`saves/`（自检跑出的空壳存档）、`build/`。
+测试产物清单：`_selftest/`（截图 + selftest.log + 自检专用存档，全在这里）、`build/`、`assets/_probe/`（做图时的临时裁切预览）。
 `.gitignore`：`saves/*` + `!saves/.gitkeep`（**目录必须常驻，`saves/.gitkeep` 让空目录也能进版本库**）、
 `_selftest/`、`build/`、`__pycache__/`。
 **清理产物时不要删 `saves/` 本身**——只清里面的 `*_save.json`，保留 `.gitkeep`。

@@ -111,7 +111,17 @@ def _migrate_outer_saves(base, save_dir):
 
 
 def data_dir():
-    """可写存档目录：exe / 项目根目录下的 saves/，不可写则退回 AppData/saves"""
+    """可写存档目录：exe / 项目根目录下的 saves/，不可写则退回 AppData/saves
+
+    自检（--selftest）时改写到 _selftest/saves，绝不碰玩家的真实存档。
+    """
+    if "--selftest" in sys.argv:
+        d = os.path.join(output_dir(), "saves")
+        try:
+            os.makedirs(d, exist_ok=True)
+        except Exception:
+            pass
+        return d
     base = base_dir()
     for root in (base, QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)):
         if not root:
@@ -154,6 +164,24 @@ def find_game_data(filename, folder):
         if os.path.exists(p):
             return p
     return None
+
+
+def asset_path(name):
+    """定位 assets/ 下的静态资源（图标 / logo），源码运行与 exe 解包目录都能找到"""
+    for base in (os.path.join(resource_dir(), "assets"),
+                 os.path.join(ROOT, "assets"),
+                 os.path.join(HERE, "assets")):
+        p = os.path.join(base, name)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def app_icon():
+    """应用图标 QIcon（找不到资源时返回空 QIcon，不影响运行）"""
+    from PySide6.QtGui import QIcon
+    p = asset_path("icon.ico") or asset_path("logo.png")
+    return QIcon(p) if p else QIcon()
 
 
 def load_game_json(filename, folder):
@@ -344,6 +372,7 @@ class GameWindow(QMainWindow):
     def __init__(self, app_name="摸鱼小游戏"):
         super().__init__()
         self.setWindowTitle("%s · %s" % (self.game_name, app_name))
+        self.setWindowIcon(app_icon())
         self.accent = GAME_ACCENTS.get(self.game_key, C_ACCENT2)
         self.setStyleSheet(
             "QMainWindow{background:%s;}"
